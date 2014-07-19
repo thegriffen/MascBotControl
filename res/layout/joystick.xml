@@ -1,0 +1,36 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/joystick_view"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="horizontal" >
+
+    <com.thegriffen.mascbotcontrol.JoystickView
+        android:id="@+id/joystickView"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginRight="35dp"
+        android:layout_marginTop="20dp" />
+
+    <TextView
+        android:id="@+id/batteryLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/joystickView"
+        android:layout_below="@+id/joystickView"
+        android:layout_marginLeft="35dp"
+        android:layout_marginTop="20dp"
+        android:text="@string/battery"
+        android:textSize="@dimen/battery_font_size" />
+
+    <TextView
+        android:id="@+id/batteryVoltage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/batteryLabel"
+        android:layout_marginLeft="15dp"
+        android:layout_toRightOf="@+id/batteryLabel"
+        android:textSize="@dimen/battery_font_size" />
+
+</RelativeLayout>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">MascBot Control</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="pref_ip">MascBot IP Address</string>
+    <string name="pref_ip_summ">The IP Address of MascBot\'s Arduino</string>
+    <string name="pref_port">MascBot Server Port</string>
+    <string name="pref_port_summ">The Port of the TCP Server</string>
+    <string name="battery">Battery:</string>
+
+</resources>
