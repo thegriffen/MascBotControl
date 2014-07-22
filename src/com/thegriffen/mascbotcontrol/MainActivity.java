@@ -1,6 +1,7 @@
 package com.thegriffen.mascbotcontrol;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -8,6 +9,9 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+
+import com.thegriffen.widgets.JoystickMovedListener;
+import com.thegriffen.widgets.JoystickView;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -18,6 +22,7 @@ import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -41,7 +46,7 @@ public class MainActivity extends ActionBarActivity {
 			pan = pan + 1500;
 			tilt = tilt * -1 + 1500;
 			if (networkTask != null) {
-				networkTask.SendDataToNetwork("X: " + pan + "\tY: " + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
 			}
 		}
 
@@ -50,7 +55,12 @@ public class MainActivity extends ActionBarActivity {
 			int pan = 1500;
 			int tilt = 1500;
 			if (networkTask != null) {
-				networkTask.SendDataToNetwork("X: " + pan + "\tY: " + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
 			}
 		}
 	};
@@ -81,6 +91,14 @@ public class MainActivity extends ActionBarActivity {
 		return true;
 	}
 
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if (networkTask != null) {
+			networkTask.cancel(true);
+		}
+	}
+
 	public void changeConnectionStatus(boolean connected) {
 		if (connected) {
 			menu.findItem(R.id.action_connect).setTitle(R.string.action_disconnect);
@@ -90,8 +108,14 @@ public class MainActivity extends ActionBarActivity {
 			this.connected = false;
 		}
 	}
+	
+	private void updateBattery(String value) {
+		TextView battery = (TextView) findViewById(R.id.batteryVoltage);
+		battery.setText(value);
+		System.out.println(value);
+	}
 
-	public class NetworkTask extends AsyncTask<Void, byte[], Boolean> {
+	public class NetworkTask extends AsyncTask<Void, String, Boolean> {
 		Socket nsocket;
 		InputStream nis;
 		OutputStream nos;
@@ -115,11 +139,10 @@ public class MainActivity extends ActionBarActivity {
 				if (nsocket.isConnected()) {
 					nis = nsocket.getInputStream();
 					nos = nsocket.getOutputStream();
-					inFromServer = new BufferedReader(new InputStreamReader(nis));
+					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
 					while (true) {
-						String msgFromServer = inFromServer.readLine();
-						byte[] theByteArray = msgFromServer.getBytes();
-						publishProgress(theByteArray);
+						String msgFromServer = dis.readLine();
+						publishProgress(msgFromServer);
 					}
 				}
 			} catch (IOException e) {
@@ -146,25 +169,22 @@ public class MainActivity extends ActionBarActivity {
 			}
 		}
 
-		public void SendDataToNetwork(String cmd) {
+		public void sendDataToNetwork(String cmd) {
 			try {
 				if (nsocket.isConnected()) {
 					nos.write(cmd.getBytes());
 				} else {
-					Log.d("Socket",
-							"SendDataToNetwork: Cannot send message. Socket is closed");
+					Log.d("Socket",	"SendDataToNetwork: Cannot send message. Socket is closed");
 				}
 			} catch (Exception e) {
-				Log.d("Socket",
-						"SendDataToNetwork: Message send failed. Caught an exception");
+				Log.d("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
 			}
 		}
 		
 		@Override
-		protected void onProgressUpdate(byte[]... values) {
+		protected void onProgressUpdate(String... values) {
 			if (values.length > 0) {
-				String command = new String(values[0]);
-				System.out.println("Received " + command);
+				updateBattery(values[0]);
 			}
 		}
 
@@ -181,14 +201,6 @@ public class MainActivity extends ActionBarActivity {
 				Log.d("Socket", "onPostExecute: Completed.");
 			}
 			changeConnectionStatus(false);
-		}
-	}
-
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		if (networkTask != null) {
-			networkTask.cancel(true);
 		}
 	}
 

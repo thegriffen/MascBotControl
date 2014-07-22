@@ -1,4 +1,4 @@
-package com.thegriffen.mascbotcontrol;
+package com.thegriffen.widgets;
 
 public interface JoystickMovedListener {
 
