@@ -33,4 +33,13 @@
         android:layout_toRightOf="@+id/batteryLabel"
         android:textSize="@dimen/battery_font_size" />
 
+    <com.thegriffen.widgets.VerticleSwitchView
+        android:id="@+id/mascotHeadSwitch"
+        android:layout_width="75dp"
+        android:layout_height="150dp"
+        android:layout_alignBottom="@+id/batteryLabel"
+        android:layout_alignParentLeft="true"
+        android:layout_marginBottom="18dp"
+        android:layout_marginLeft="123dp" />
+
 </RelativeLayout>

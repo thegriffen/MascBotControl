@@ -1,7 +1,6 @@
 package com.thegriffen.mascbotcontrol;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -9,9 +8,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
-
-import com.thegriffen.widgets.JoystickMovedListener;
-import com.thegriffen.widgets.JoystickView;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,19 +20,36 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
+import com.thegriffen.widgets.JoystickMovedListener;
+import com.thegriffen.widgets.JoystickView;
+import com.thegriffen.widgets.VerticleSwitchListener;
+import com.thegriffen.widgets.VerticleSwitchView;
+
 public class MainActivity extends ActionBarActivity {
 
 	private Menu menu;
 	private boolean connected = false;
 	JoystickView joystick;
+	VerticleSwitchView mascotHead;
 	NetworkTask networkTask;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.joystick);
+		setContentView(R.layout.activity_main);
 		joystick = (JoystickView) findViewById(R.id.joystickView);
 		joystick.setOnJostickMovedListener(_listener);
+		mascotHead = (VerticleSwitchView) findViewById(R.id.mascotHeadSwitch);
+		mascotHead.setOnSwitchedListener(new VerticleSwitchListener() {
+			
+			@Override
+			public void OnSwitched(boolean down) {
+				if(networkTask != null) {
+					networkTask.sendDataToNetwork("h" + String.valueOf(down) + "\n");
+					System.out.println("Head: " + down);
+				}
+			}
+		});
 	}
 
 	private JoystickMovedListener _listener = new JoystickMovedListener() {
@@ -46,7 +59,7 @@ public class MainActivity extends ActionBarActivity {
 			pan = pan + 1500;
 			tilt = tilt * -1 + 1500;
 			if (networkTask != null) {
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
 			}
 		}
 
@@ -55,12 +68,12 @@ public class MainActivity extends ActionBarActivity {
 			int pan = 1500;
 			int tilt = 1500;
 			if (networkTask != null) {
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
-				networkTask.sendDataToNetwork("X" + pan + "Y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
+				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
 			}
 		}
 	};
@@ -95,7 +108,9 @@ public class MainActivity extends ActionBarActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 		if (networkTask != null) {
+			networkTask.closeSocket();
 			networkTask.cancel(true);
+			networkTask = null;
 		}
 	}
 
@@ -140,6 +155,7 @@ public class MainActivity extends ActionBarActivity {
 					nis = nsocket.getInputStream();
 					nos = nsocket.getOutputStream();
 					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
+					sendDataToNetwork("Hello Arduino");
 					while (true) {
 						String msgFromServer = dis.readLine();
 						publishProgress(msgFromServer);
@@ -171,13 +187,14 @@ public class MainActivity extends ActionBarActivity {
 
 		public void sendDataToNetwork(String cmd) {
 			try {
-				if (nsocket.isConnected()) {
+				if (!nsocket.isClosed()) {
 					nos.write(cmd.getBytes());
 				} else {
 					Log.d("Socket",	"SendDataToNetwork: Cannot send message. Socket is closed");
 				}
 			} catch (Exception e) {
-				Log.d("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
+				Log.e("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
+				e.printStackTrace();
 			}
 		}
 		
