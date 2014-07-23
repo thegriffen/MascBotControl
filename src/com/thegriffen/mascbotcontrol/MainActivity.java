@@ -3,11 +3,11 @@ package com.thegriffen.mascbotcontrol;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketAddress;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -144,7 +144,7 @@ public class MainActivity extends ActionBarActivity {
 	
 	private void sendData(String data) {
 		if(networkTask != null) {
-			networkTask.sendDataToNetwork(data + "\n");
+			networkTask.sendDataToNetwork(data);
 		}
 	}
 
@@ -174,10 +174,10 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	public class NetworkTask extends AsyncTask<Void, String, Boolean> {
-		Socket nsocket;
-		InputStream nis;
-		OutputStream nos;
-		BufferedReader inFromServer;
+		DatagramSocket clientSocket;
+		int port;
+		InetAddress IPAddress;
+		String dataToSend;
 
 		@Override
 		protected void onPreExecute() {
@@ -189,21 +189,35 @@ public class MainActivity extends ActionBarActivity {
 			boolean result = false;
 			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
-			int port = Integer.parseInt(prefs.getString("port", "8888"));
+			port = Integer.parseInt(prefs.getString("port", "8888"));
 			try {
-				SocketAddress sockaddr = new InetSocketAddress(ipAddr, port);
-				nsocket = new Socket();
-				nsocket.connect(sockaddr, 5000);
-				if (nsocket.isConnected()) {
-					nis = nsocket.getInputStream();
-					nos = nsocket.getOutputStream();
-					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
-					sendData("Hello Arduino");
-					while (true) {
-						String msgFromServer = dis.readLine();
-						publishProgress(msgFromServer);
+				IPAddress = InetAddress.getByName(ipAddr);
+				clientSocket = new DatagramSocket();
+				byte[] receiveData = new byte[1024];
+				byte[] sendData = new byte[1024];
+				sendData = "Hello Arduino".getBytes();
+				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				clientSocket.send(sendPacket);
+				while(true) {
+					if(dataToSend != null) {
+						try {
+							sendData = dataToSend.getBytes();
+							sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+							clientSocket.send(sendPacket);
+							dataToSend = null;
+						} catch (IOException e) {
+							Log.e("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
+							e.printStackTrace();
+						}
 					}
+					
+//					DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+//					clientSocket.receive(receivePacket);
+//					String input = new String(receivePacket.getData());
+//					System.out.println(input);
+//					publishProgress(input);
 				}
+				
 			} catch (IOException e) {
 				e.printStackTrace();
 				result = true;
@@ -217,28 +231,11 @@ public class MainActivity extends ActionBarActivity {
 		}
 
 		public void closeSocket() {
-			try {
-				nis.close();
-				nos.close();
-				nsocket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			clientSocket.close();
 		}
 
 		public void sendDataToNetwork(String cmd) {
-			try {
-				if (!nsocket.isClosed()) {
-					nos.write(cmd.getBytes());
-				} else {
-					Log.d("Socket",	"SendDataToNetwork: Cannot send message. Socket is closed");
-				}
-			} catch (Exception e) {
-				Log.e("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
-				e.printStackTrace();
-			}
+			dataToSend = cmd;
 		}
 		
 		@Override
