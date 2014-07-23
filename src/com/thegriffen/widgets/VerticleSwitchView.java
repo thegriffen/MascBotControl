@@ -67,7 +67,7 @@ public class VerticleSwitchView extends View {
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		int actionType = event.getAction();
-		if(actionType == MotionEvent.ACTION_DOWN) {
+		if(actionType == MotionEvent.ACTION_UP) {
 			switchDown = !switchDown;
 			if(listener != null) {
 				listener.OnSwitched(switchDown);

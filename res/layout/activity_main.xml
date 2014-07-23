@@ -33,13 +33,67 @@
         android:layout_toRightOf="@+id/batteryLabel"
         android:textSize="@dimen/battery_font_size" />
 
+    <Button
+        android:id="@+id/leftStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/mascotHeadSwitch"
+        android:layout_alignLeft="@+id/leftBackward"
+        android:layout_alignRight="@+id/leftBackward"
+        android:text="@string/stop" />
+
+    <Button
+        android:id="@+id/leftForward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/leftBackward"
+        android:layout_alignLeft="@+id/leftBackward"
+        android:layout_alignRight="@+id/leftBackward"
+        android:text="@string/forward" />
+
+    <Button
+        android:id="@+id/leftBackward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/leftStop"
+        android:layout_alignParentLeft="true"
+        android:layout_marginLeft="9dp"
+        android:text="@string/backward" />
+
     <com.thegriffen.widgets.VerticleSwitchView
         android:id="@+id/mascotHeadSwitch"
         android:layout_width="75dp"
         android:layout_height="150dp"
         android:layout_alignBottom="@+id/batteryLabel"
-        android:layout_alignParentLeft="true"
-        android:layout_marginBottom="18dp"
-        android:layout_marginLeft="123dp" />
+        android:layout_marginBottom="17dp"
+        android:layout_marginLeft="10dp"
+        android:layout_toRightOf="@+id/leftStop" />
+
+    <Button
+        android:id="@+id/rightStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/mascotHeadSwitch"
+        android:layout_alignLeft="@+id/rightBackward"
+        android:layout_alignRight="@+id/rightBackward"
+        android:text="@string/stop" />
+
+    <Button
+        android:id="@+id/rightForward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/rightBackward"
+        android:layout_alignLeft="@+id/rightBackward"
+        android:layout_alignRight="@+id/rightBackward"
+        android:text="@string/forward" />
+
+    <Button
+        android:id="@+id/rightBackward"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/rightStop"
+        android:layout_toRightOf="@+id/mascotHeadSwitch"
+        android:layout_marginLeft="10dp"
+        android:text="@string/backward" />
 
 </RelativeLayout>

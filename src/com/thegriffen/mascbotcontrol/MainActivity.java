@@ -18,6 +18,9 @@ import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.thegriffen.widgets.JoystickMovedListener;
@@ -40,14 +43,53 @@ public class MainActivity extends ActionBarActivity {
 		joystick = (JoystickView) findViewById(R.id.joystickView);
 		joystick.setOnJostickMovedListener(_listener);
 		mascotHead = (VerticleSwitchView) findViewById(R.id.mascotHeadSwitch);
-		mascotHead.setOnSwitchedListener(new VerticleSwitchListener() {
-			
+		mascotHead.setOnSwitchedListener(new VerticleSwitchListener() {			
 			@Override
 			public void OnSwitched(boolean down) {
-				if(networkTask != null) {
-					networkTask.sendDataToNetwork("h" + String.valueOf(down) + "\n");
-					System.out.println("Head: " + down);
-				}
+				sendData("h" + String.valueOf(down));
+			}
+		});
+		Button leftForward = (Button) findViewById(R.id.leftForward);
+		leftForward.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("lf");
+			}
+		});
+		Button leftBackward = (Button) findViewById(R.id.leftBackward);
+		leftBackward.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("lb");
+			}
+		});
+		Button leftStop = (Button) findViewById(R.id.leftStop);
+		leftStop.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("ls");
+			}
+		});
+		
+		Button rightForward = (Button) findViewById(R.id.rightForward);
+		rightForward.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("rf");
+			}
+		});
+		Button rightBackward = (Button) findViewById(R.id.rightBackward);
+		rightBackward.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("rb");
+			}
+		});
+		Button rightStop = (Button) findViewById(R.id.rightStop);
+		rightStop.setOnClickListener(new OnClickListener() {			
+			@Override
+			public void onClick(View v) {
+				sendData("rs");
 			}
 		});
 	}
@@ -58,23 +100,19 @@ public class MainActivity extends ActionBarActivity {
 		public void OnMoved(int pan, int tilt) {
 			pan = pan + 1500;
 			tilt = tilt * -1 + 1500;
-			if (networkTask != null) {
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-			}
+			sendData("x" + pan + "y" + tilt);
 		}
 
 		@Override
 		public void OnReleased() {
 			int pan = 1500;
 			int tilt = 1500;
-			if (networkTask != null) {
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-				networkTask.sendDataToNetwork("x" + pan + "y" + tilt + "\n");
-			}
+			sendData("x" + pan + "y" + tilt);
+			sendData("x" + pan + "y" + tilt);
+			sendData("x" + pan + "y" + tilt);
+			sendData("x" + pan + "y" + tilt);
+			sendData("x" + pan + "y" + tilt);
+			sendData("x" + pan + "y" + tilt);
 		}
 	};
 
@@ -103,6 +141,12 @@ public class MainActivity extends ActionBarActivity {
 		}
 		return true;
 	}
+	
+	private void sendData(String data) {
+		if(networkTask != null) {
+			networkTask.sendDataToNetwork(data + "\n");
+		}
+	}
 
 	@Override
 	protected void onDestroy() {
@@ -127,7 +171,6 @@ public class MainActivity extends ActionBarActivity {
 	private void updateBattery(String value) {
 		TextView battery = (TextView) findViewById(R.id.batteryVoltage);
 		battery.setText(value);
-		System.out.println(value);
 	}
 
 	public class NetworkTask extends AsyncTask<Void, String, Boolean> {
@@ -155,7 +198,7 @@ public class MainActivity extends ActionBarActivity {
 					nis = nsocket.getInputStream();
 					nos = nsocket.getOutputStream();
 					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
-					sendDataToNetwork("Hello Arduino");
+					sendData("Hello Arduino");
 					while (true) {
 						String msgFromServer = dis.readLine();
 						publishProgress(msgFromServer);
