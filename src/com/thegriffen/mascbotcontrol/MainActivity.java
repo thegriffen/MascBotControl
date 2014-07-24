@@ -12,15 +12,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 
-import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -31,7 +27,6 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.thegriffen.mascbotcontrol.UdpSendService.LocalBinder;
 import com.thegriffen.widgets.JoystickMovedListener;
 import com.thegriffen.widgets.JoystickView;
 import com.thegriffen.widgets.VerticleSwitchListener;
@@ -45,8 +40,6 @@ public class MainActivity extends ActionBarActivity {
 	VerticleSwitchView mascotHead;
 	TcpNetworkTask tcpNetworkTask;
 	UdpNetworkTask udpNetworkTask;
-	UdpSendService mService;
-	boolean mBound = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -142,8 +135,8 @@ public class MainActivity extends ActionBarActivity {
 				if (!connected) {
 					tcpNetworkTask = new TcpNetworkTask();
 					startTask(tcpNetworkTask);
-//					udpNetworkTask = new UdpNetworkTask();
-//					startTask(udpNetworkTask);
+					udpNetworkTask = new UdpNetworkTask();
+					startTask(udpNetworkTask);
 				} else {
 					if (tcpNetworkTask != null) {
 						tcpNetworkTask.closeSocket();
@@ -207,38 +200,7 @@ public class MainActivity extends ActionBarActivity {
 	    else
 	        asyncTask.execute();
 	}
-	
-	@Override
-	protected void onStart() {
-		super.onStart();
-		Intent intent = new Intent(this, UdpSendService.class);
-		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-	}
-	
-	@Override
-	protected void onStop() {
-		super.onStop();
-		if (mBound) {
-            unbindService(mConnection);
-            mBound = false;
-        }
-	}
-	
-	private ServiceConnection mConnection = new ServiceConnection() {
-		@Override
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            LocalBinder binder = (LocalBinder) service;
-            mService = binder.getService();
-            mBound = true;
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mBound = false;
-        }
-	};
-	
+		
 	public class UdpNetworkTask extends AsyncTask<Void, String, Boolean> {
 		DatagramSocket clientSocket;
 		String dataToSend;
@@ -249,7 +211,6 @@ public class MainActivity extends ActionBarActivity {
 			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
 			int port = Integer.parseInt(prefs.getString("port", "8888"));
-//			int port = 12345;
 			try {
 				InetAddress IPAddress = InetAddress.getByName(ipAddr);
 				clientSocket = new DatagramSocket();
@@ -263,6 +224,7 @@ public class MainActivity extends ActionBarActivity {
 							sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 							clientSocket.send(sendPacket);
 							dataToSend = null;
+							Thread.sleep(30);
 						} catch (IOException e) {
 							Log.e("UDPSocket",	"SendUDPDataToNetwork: Message send failed. Caught an exception");
 							e.printStackTrace();
