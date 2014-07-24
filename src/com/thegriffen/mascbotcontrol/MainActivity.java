@@ -3,16 +3,24 @@ package com.thegriffen.mascbotcontrol;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -23,6 +31,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.thegriffen.mascbotcontrol.UdpSendService.LocalBinder;
 import com.thegriffen.widgets.JoystickMovedListener;
 import com.thegriffen.widgets.JoystickView;
 import com.thegriffen.widgets.VerticleSwitchListener;
@@ -34,7 +43,10 @@ public class MainActivity extends ActionBarActivity {
 	private boolean connected = false;
 	JoystickView joystick;
 	VerticleSwitchView mascotHead;
-	NetworkTask networkTask;
+	TcpNetworkTask tcpNetworkTask;
+	UdpNetworkTask udpNetworkTask;
+	UdpSendService mService;
+	boolean mBound = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -46,28 +58,28 @@ public class MainActivity extends ActionBarActivity {
 		mascotHead.setOnSwitchedListener(new VerticleSwitchListener() {			
 			@Override
 			public void OnSwitched(boolean down) {
-				sendData("h" + String.valueOf(down));
+				sendTcpData("h" + String.valueOf(down));
 			}
 		});
 		Button leftForward = (Button) findViewById(R.id.leftForward);
 		leftForward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("lf");
+				sendTcpData("lf");
 			}
 		});
 		Button leftBackward = (Button) findViewById(R.id.leftBackward);
 		leftBackward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("lb");
+				sendTcpData("lb");
 			}
 		});
 		Button leftStop = (Button) findViewById(R.id.leftStop);
 		leftStop.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("ls");
+				sendTcpData("ls");
 			}
 		});
 		
@@ -75,21 +87,21 @@ public class MainActivity extends ActionBarActivity {
 		rightForward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rf");
+				sendTcpData("rf");
 			}
 		});
 		Button rightBackward = (Button) findViewById(R.id.rightBackward);
 		rightBackward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rb");
+				sendTcpData("rb");
 			}
 		});
 		Button rightStop = (Button) findViewById(R.id.rightStop);
 		rightStop.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rs");
+				sendTcpData("rs");
 			}
 		});
 	}
@@ -100,19 +112,19 @@ public class MainActivity extends ActionBarActivity {
 		public void OnMoved(int pan, int tilt) {
 			pan = pan + 1500;
 			tilt = tilt * -1 + 1500;
-			sendData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
 		}
 
 		@Override
 		public void OnReleased() {
 			int pan = 1500;
 			int tilt = 1500;
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
 		}
 	};
 
@@ -125,36 +137,52 @@ public class MainActivity extends ActionBarActivity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		if (item.getItemId() == R.id.action_connect) {
-			if (!connected) {
-				networkTask = new NetworkTask();
-				networkTask.execute();
-			} else {
-				if (networkTask != null) {
-					networkTask.closeSocket();
-					networkTask.cancel(true);
+		switch (item.getItemId()) {
+			case R.id.action_connect:
+				if (!connected) {
+					tcpNetworkTask = new TcpNetworkTask();
+					startTask(tcpNetworkTask);
+//					udpNetworkTask = new UdpNetworkTask();
+//					startTask(udpNetworkTask);
+				} else {
+					if (tcpNetworkTask != null) {
+						tcpNetworkTask.closeSocket();
+						tcpNetworkTask.cancel(false);
+						tcpNetworkTask = null;
+					}
+					if (udpNetworkTask != null) {
+						udpNetworkTask.cancel(false);
+						udpNetworkTask = null;
+					}
 				}
-			}
-		} else if (item.getItemId() == R.id.action_settings) {
-			Intent intent = new Intent(this, SettingsActivity.class);
-			startActivity(intent);
+				break;
+			case R.id.action_settings:
+				Intent intent = new Intent(this, SettingsActivity.class);
+				startActivity(intent);
+				break;
 		}
 		return true;
 	}
 	
-	private void sendData(String data) {
-		if(networkTask != null) {
-			networkTask.sendDataToNetwork(data);
+	private void sendTcpData(String data) {
+		if(tcpNetworkTask != null) {
+			tcpNetworkTask.sendDataToNetwork(data + "\n");
+		}
+	}
+	
+	private void sendUdpData(String data) {
+		if(udpNetworkTask != null) {
+			udpNetworkTask.sendUdpData(data);
 		}
 	}
 
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if (networkTask != null) {
-			networkTask.closeSocket();
-			networkTask.cancel(true);
-			networkTask = null;
+		if (tcpNetworkTask != null) {
+			tcpNetworkTask.closeSocket();
+			tcpNetworkTask.cancel(true);
+			tcpNetworkTask = null;
 		}
 	}
 
@@ -172,12 +200,103 @@ public class MainActivity extends ActionBarActivity {
 		TextView battery = (TextView) findViewById(R.id.batteryVoltage);
 		battery.setText(value);
 	}
+	
+	private void startTask(AsyncTask<Void, String, Boolean> asyncTask) {
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB)
+	        asyncTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    else
+	        asyncTask.execute();
+	}
+	
+	@Override
+	protected void onStart() {
+		super.onStart();
+		Intent intent = new Intent(this, UdpSendService.class);
+		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	@Override
+	protected void onStop() {
+		super.onStop();
+		if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+        }
+	}
+	
+	private ServiceConnection mConnection = new ServiceConnection() {
+		@Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            LocalBinder binder = (LocalBinder) service;
+            mService = binder.getService();
+            mBound = true;
+        }
 
-	public class NetworkTask extends AsyncTask<Void, String, Boolean> {
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
+	};
+	
+	public class UdpNetworkTask extends AsyncTask<Void, String, Boolean> {
 		DatagramSocket clientSocket;
-		int port;
-		InetAddress IPAddress;
 		String dataToSend;
+		
+		@Override
+		protected Boolean doInBackground(Void... params) {
+			boolean result = false;
+			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
+			int port = Integer.parseInt(prefs.getString("port", "8888"));
+//			int port = 12345;
+			try {
+				InetAddress IPAddress = InetAddress.getByName(ipAddr);
+				clientSocket = new DatagramSocket();
+				System.out.println("Socket Created");
+				byte[] sendData = new byte[1024];
+				DatagramPacket sendPacket;
+				while(connected) {
+					if(dataToSend != null && connected) {
+						try {
+							sendData = dataToSend.getBytes();
+							sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+							clientSocket.send(sendPacket);
+							dataToSend = null;
+						} catch (IOException e) {
+							Log.e("UDPSocket",	"SendUDPDataToNetwork: Message send failed. Caught an exception");
+							e.printStackTrace();
+						}
+					}
+				}
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+				result = true;
+			} catch (Exception e) {
+				e.printStackTrace();
+				result = true;
+			}
+			return result;
+		}
+		
+		@Override
+		protected void onCancelled() {
+			if(clientSocket != null) {
+				clientSocket.close();
+			}
+		}
+		
+		public void sendUdpData(String data) {
+			dataToSend = data;
+		}		
+	}
+
+	public class TcpNetworkTask extends AsyncTask<Void, String, Boolean> {
+		Socket nsocket;
+		InputStream nis;
+		OutputStream nos;
+		BufferedReader inFromServer;
 
 		@Override
 		protected void onPreExecute() {
@@ -189,35 +308,21 @@ public class MainActivity extends ActionBarActivity {
 			boolean result = false;
 			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
-			port = Integer.parseInt(prefs.getString("port", "8888"));
+			int port = Integer.parseInt(prefs.getString("port", "8888"));
 			try {
-				IPAddress = InetAddress.getByName(ipAddr);
-				clientSocket = new DatagramSocket();
-				byte[] receiveData = new byte[1024];
-				byte[] sendData = new byte[1024];
-				sendData = "Hello Arduino".getBytes();
-				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-				clientSocket.send(sendPacket);
-				while(true) {
-					if(dataToSend != null) {
-						try {
-							sendData = dataToSend.getBytes();
-							sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-							clientSocket.send(sendPacket);
-							dataToSend = null;
-						} catch (IOException e) {
-							Log.e("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
-							e.printStackTrace();
-						}
+				SocketAddress sockaddr = new InetSocketAddress(ipAddr, port);
+				nsocket = new Socket();
+				nsocket.connect(sockaddr, 5000);
+				if (nsocket.isConnected()) {
+					nis = nsocket.getInputStream();
+					nos = nsocket.getOutputStream();
+					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
+					sendTcpData("Hello Arduino");
+					while (true) {
+						String msgFromServer = dis.readLine();
+						publishProgress(msgFromServer);
 					}
-					
-//					DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-//					clientSocket.receive(receivePacket);
-//					String input = new String(receivePacket.getData());
-//					System.out.println(input);
-//					publishProgress(input);
 				}
-				
 			} catch (IOException e) {
 				e.printStackTrace();
 				result = true;
@@ -231,11 +336,30 @@ public class MainActivity extends ActionBarActivity {
 		}
 
 		public void closeSocket() {
-			clientSocket.close();
+			if (!nsocket.isClosed()) {
+				try {
+					nis.close();
+					nos.close();
+					nsocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
 		}
 
 		public void sendDataToNetwork(String cmd) {
-			dataToSend = cmd;
+			try {
+				if (!nsocket.isClosed()) {
+					nos.write(cmd.getBytes());
+				} else {
+					Log.d("Socket",	"SendDataToNetwork: Cannot send message. Socket is closed");
+				}
+			} catch (Exception e) {
+				Log.e("Socket",	"SendDataToNetwork: Message send failed. Caught an exception");
+				e.printStackTrace();
+			}
 		}
 		
 		@Override
