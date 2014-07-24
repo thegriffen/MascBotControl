@@ -31,7 +31,7 @@
             android:parentActivityName="com.thegriffen.mascbotcontrol.MainActivity" >
         </activity>
         <service
-            android:name="UdpSendService" >
+            android:name=".UdpSendService" >
         </service>
     </application>
 

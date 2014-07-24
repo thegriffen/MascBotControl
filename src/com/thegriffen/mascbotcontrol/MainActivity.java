@@ -171,8 +171,11 @@ public class MainActivity extends ActionBarActivity {
 	}
 	
 	private void sendUdpData(String data) {
-		if(udpNetworkTask != null) {
-			udpNetworkTask.sendUdpData(data);
+//		if(udpNetworkTask != null) {
+//			udpNetworkTask.sendUdpData(data);
+//		}
+		if(mBound) {
+			mService.send(data);
 		}
 	}
 
@@ -249,7 +252,6 @@ public class MainActivity extends ActionBarActivity {
 			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
 			int port = Integer.parseInt(prefs.getString("port", "8888"));
-//			int port = 12345;
 			try {
 				InetAddress IPAddress = InetAddress.getByName(ipAddr);
 				clientSocket = new DatagramSocket();
