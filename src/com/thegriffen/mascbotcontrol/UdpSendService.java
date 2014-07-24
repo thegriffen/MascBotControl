@@ -1,6 +1,5 @@
 package com.thegriffen.mascbotcontrol;
 
-import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -11,13 +10,13 @@ import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.util.Log;
 
 public class UdpSendService extends Service {
 	
 	private final IBinder mBinder = new LocalBinder();
 	String dataToSend = "";
 	String oldData = "";
+	DatagramSocket clientSocket = null;
 	
 	public class LocalBinder extends Binder {
 		UdpSendService getService() {
@@ -30,7 +29,6 @@ public class UdpSendService extends Service {
 		Thread t = new Thread() {
 			@Override
 			public void run() {
-				DatagramSocket clientSocket = null;
 				SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(UdpSendService.this);
 				String ipAddr = prefs.getString("ip_address", "192.168.1.1");
 				int port = Integer.parseInt(prefs.getString("port", "8888"));
@@ -56,7 +54,7 @@ public class UdpSendService extends Service {
 						oldData = dataToSend;
 					}
 					try {
-						Thread.sleep(20);
+						Thread.sleep(25);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -69,6 +67,13 @@ public class UdpSendService extends Service {
 	
 	public void send(String data) {
 		dataToSend = data;
+	}
+	
+	@Override
+	public boolean onUnbind(Intent intent) {
+		clientSocket.close();
+		System.out.println("Service Stopped");
+		return false;
 	}
 
 }

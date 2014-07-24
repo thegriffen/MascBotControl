@@ -44,7 +44,6 @@ public class MainActivity extends ActionBarActivity {
 	JoystickView joystick;
 	VerticleSwitchView mascotHead;
 	TcpNetworkTask tcpNetworkTask;
-	UdpNetworkTask udpNetworkTask;
 	UdpSendService mService;
 	boolean mBound = false;
 
@@ -142,18 +141,18 @@ public class MainActivity extends ActionBarActivity {
 				if (!connected) {
 					tcpNetworkTask = new TcpNetworkTask();
 					startTask(tcpNetworkTask);
-//					udpNetworkTask = new UdpNetworkTask();
-//					startTask(udpNetworkTask);
+					Intent intent = new Intent(this, UdpSendService.class);
+					bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 				} else {
 					if (tcpNetworkTask != null) {
 						tcpNetworkTask.closeSocket();
 						tcpNetworkTask.cancel(false);
 						tcpNetworkTask = null;
 					}
-					if (udpNetworkTask != null) {
-						udpNetworkTask.cancel(false);
-						udpNetworkTask = null;
-					}
+					if (mBound) {
+			            unbindService(mConnection);
+			            mBound = false;
+			        }
 				}
 				break;
 			case R.id.action_settings:
@@ -171,9 +170,6 @@ public class MainActivity extends ActionBarActivity {
 	}
 	
 	private void sendUdpData(String data) {
-//		if(udpNetworkTask != null) {
-//			udpNetworkTask.sendUdpData(data);
-//		}
 		if(mBound) {
 			mService.send(data);
 		}
@@ -211,22 +207,6 @@ public class MainActivity extends ActionBarActivity {
 	        asyncTask.execute();
 	}
 	
-	@Override
-	protected void onStart() {
-		super.onStart();
-		Intent intent = new Intent(this, UdpSendService.class);
-		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-	}
-	
-	@Override
-	protected void onStop() {
-		super.onStop();
-		if (mBound) {
-            unbindService(mConnection);
-            mBound = false;
-        }
-	}
-	
 	private ServiceConnection mConnection = new ServiceConnection() {
 		@Override
         public void onServiceConnected(ComponentName className, IBinder service) {
@@ -242,58 +222,6 @@ public class MainActivity extends ActionBarActivity {
         }
 	};
 	
-	public class UdpNetworkTask extends AsyncTask<Void, String, Boolean> {
-		DatagramSocket clientSocket;
-		String dataToSend;
-		
-		@Override
-		protected Boolean doInBackground(Void... params) {
-			boolean result = false;
-			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-			String ipAddr = prefs.getString("ip_address", "192.168.1.1");
-			int port = Integer.parseInt(prefs.getString("port", "8888"));
-			try {
-				InetAddress IPAddress = InetAddress.getByName(ipAddr);
-				clientSocket = new DatagramSocket();
-				System.out.println("Socket Created");
-				byte[] sendData = new byte[1024];
-				DatagramPacket sendPacket;
-				while(connected) {
-					if(dataToSend != null && connected) {
-						try {
-							sendData = dataToSend.getBytes();
-							sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-							clientSocket.send(sendPacket);
-							dataToSend = null;
-						} catch (IOException e) {
-							Log.e("UDPSocket",	"SendUDPDataToNetwork: Message send failed. Caught an exception");
-							e.printStackTrace();
-						}
-					}
-				}
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-				result = true;
-			} catch (Exception e) {
-				e.printStackTrace();
-				result = true;
-			}
-			return result;
-		}
-		
-		@Override
-		protected void onCancelled() {
-			if(clientSocket != null) {
-				clientSocket.close();
-			}
-		}
-		
-		public void sendUdpData(String data) {
-			dataToSend = data;
-		}		
-	}
-
 	public class TcpNetworkTask extends AsyncTask<Void, String, Boolean> {
 		Socket nsocket;
 		InputStream nis;
