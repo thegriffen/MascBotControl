@@ -6,17 +6,11 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Handler;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class JoystickView extends View {
 
-        // =========================================
-        // Private Members
-        // =========================================
-
-        private final String TAG = "JoystickView";
         private Paint circlePaint;
         private Paint handlePaint;
         private double touchX, touchY;
@@ -25,10 +19,6 @@ public class JoystickView extends View {
         private int handleInnerBoundaries;
         private JoystickMovedListener listener;
         private int sensitivity;
-
-        // =========================================
-        // Constructors
-        // =========================================
 
         public JoystickView(Context context) {
                 super(context);
@@ -44,10 +34,6 @@ public class JoystickView extends View {
                 super(context, attrs, defStyle);
                 initJoystickView();
         }
-
-        // =========================================
-        // Initialization
-        // =========================================
 
         private void initJoystickView() {
                 setFocusable(true);
@@ -66,21 +52,12 @@ public class JoystickView extends View {
                 sensitivity = 500;
         }
 
-        // =========================================
-        // Public Methods 
-        // =========================================
-
         public void setOnJostickMovedListener(JoystickMovedListener listener) {
                 this.listener = listener;
         }
-        
-        // =========================================
-        // Drawing Functionality 
-        // =========================================
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                // Here we make sure that we have a perfect circle
                 int measuredWidth = measure(widthMeasureSpec);
                 int measuredHeight = measure(heightMeasureSpec);
                 int d = Math.min(measuredWidth, measuredHeight);
@@ -93,15 +70,11 @@ public class JoystickView extends View {
 
         private int measure(int measureSpec) {
                 int result = 0;
-                // Decode the measurement specifications.
                 int specMode = MeasureSpec.getMode(measureSpec);
                 int specSize = MeasureSpec.getSize(measureSpec);
                 if (specMode == MeasureSpec.UNSPECIFIED) {
-                        // Return a default size of 200 if no bounds are specified.
                         result = 200;
                 } else {
-                        // As you want to fill the available space
-                        // always return the full available bounds.
                         result = specSize;
                 }
                 return result;
@@ -113,10 +86,8 @@ public class JoystickView extends View {
                 int py = getMeasuredHeight() / 2;
                 int radius = Math.min(px, py);
 
-                // Draw the background
                 canvas.drawCircle(px, py, radius - innerPadding, circlePaint);
 
-                // Draw the handle
                 canvas.drawCircle((int) touchX + px, (int) touchY + py, handleRadius,
                                 handlePaint);
 
@@ -137,10 +108,7 @@ public class JoystickView extends View {
                         touchY = (event.getY() - py);
                         touchY = Math.max(Math.min(touchY, radius), -radius);
 
-                        // Coordinates
 //                        Log.d(TAG, "X:" + touchX + "|Y:" + touchY);
-
-                        // Pressure
                         if (listener != null) {
                                 listener.OnMoved((int) (touchX / radius * sensitivity), (int) (touchY  / radius * sensitivity));
                         }

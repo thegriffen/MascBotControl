@@ -5,9 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -18,7 +15,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -139,20 +135,9 @@ public class MainActivity extends ActionBarActivity {
 		switch (item.getItemId()) {
 			case R.id.action_connect:
 				if (!connected) {
-					tcpNetworkTask = new TcpNetworkTask();
-					startTask(tcpNetworkTask);
-					Intent intent = new Intent(this, UdpSendService.class);
-					bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+					connect();
 				} else {
-					if (tcpNetworkTask != null) {
-						tcpNetworkTask.closeSocket();
-						tcpNetworkTask.cancel(false);
-						tcpNetworkTask = null;
-					}
-					if (mBound) {
-			            unbindService(mConnection);
-			            mBound = false;
-			        }
+					disconnect();
 				}
 				break;
 			case R.id.action_settings:
@@ -161,6 +146,25 @@ public class MainActivity extends ActionBarActivity {
 				break;
 		}
 		return true;
+	}
+	
+	private void connect() {
+		tcpNetworkTask = new TcpNetworkTask();
+		tcpNetworkTask.execute();
+		Intent intent = new Intent(this, UdpSendService.class);
+		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	private void disconnect() {
+		if (tcpNetworkTask != null) {
+			tcpNetworkTask.closeSocket();
+			tcpNetworkTask.cancel(false);
+			tcpNetworkTask = null;
+		}
+		if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+        }
 	}
 	
 	private void sendTcpData(String data) {
@@ -178,11 +182,7 @@ public class MainActivity extends ActionBarActivity {
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if (tcpNetworkTask != null) {
-			tcpNetworkTask.closeSocket();
-			tcpNetworkTask.cancel(true);
-			tcpNetworkTask = null;
-		}
+		disconnect();
 	}
 
 	public void changeConnectionStatus(boolean connected) {
@@ -200,17 +200,9 @@ public class MainActivity extends ActionBarActivity {
 		battery.setText(value);
 	}
 	
-	private void startTask(AsyncTask<Void, String, Boolean> asyncTask) {
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB)
-	        asyncTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    else
-	        asyncTask.execute();
-	}
-	
 	private ServiceConnection mConnection = new ServiceConnection() {
 		@Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
             LocalBinder binder = (LocalBinder) service;
             mService = binder.getService();
             mBound = true;
@@ -266,16 +258,14 @@ public class MainActivity extends ActionBarActivity {
 		}
 
 		public void closeSocket() {
-			if (!nsocket.isClosed()) {
-				try {
-					nis.close();
-					nos.close();
-					nsocket.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+			try {
+				nis.close();
+				nos.close();
+				nsocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
 
@@ -301,6 +291,7 @@ public class MainActivity extends ActionBarActivity {
 
 		@Override
 		protected void onCancelled() {
+			closeSocket();
 			changeConnectionStatus(false);
 		}
 
@@ -311,6 +302,7 @@ public class MainActivity extends ActionBarActivity {
 			} else {
 				Log.d("Socket", "onPostExecute: Completed.");
 			}
+			closeSocket();
 			changeConnectionStatus(false);
 		}
 	}
