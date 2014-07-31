@@ -9,10 +9,14 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -23,6 +27,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.thegriffen.mascbotcontrol.UdpSendService.LocalBinder;
 import com.thegriffen.widgets.JoystickMovedListener;
 import com.thegriffen.widgets.JoystickView;
 import com.thegriffen.widgets.VerticleSwitchListener;
@@ -34,7 +39,9 @@ public class MainActivity extends ActionBarActivity {
 	private boolean connected = false;
 	JoystickView joystick;
 	VerticleSwitchView mascotHead;
-	NetworkTask networkTask;
+	TcpNetworkTask tcpNetworkTask;
+	UdpSendService mService;
+	boolean mBound = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -46,28 +53,28 @@ public class MainActivity extends ActionBarActivity {
 		mascotHead.setOnSwitchedListener(new VerticleSwitchListener() {			
 			@Override
 			public void OnSwitched(boolean down) {
-				sendData("h" + String.valueOf(down));
+				sendTcpData("h" + String.valueOf(down));
 			}
 		});
 		Button leftForward = (Button) findViewById(R.id.leftForward);
 		leftForward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("lf");
+				sendTcpData("lf");
 			}
 		});
 		Button leftBackward = (Button) findViewById(R.id.leftBackward);
 		leftBackward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("lb");
+				sendTcpData("lb");
 			}
 		});
 		Button leftStop = (Button) findViewById(R.id.leftStop);
 		leftStop.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("ls");
+				sendTcpData("ls");
 			}
 		});
 		
@@ -75,21 +82,21 @@ public class MainActivity extends ActionBarActivity {
 		rightForward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rf");
+				sendTcpData("rf");
 			}
 		});
 		Button rightBackward = (Button) findViewById(R.id.rightBackward);
 		rightBackward.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rb");
+				sendTcpData("rb");
 			}
 		});
 		Button rightStop = (Button) findViewById(R.id.rightStop);
 		rightStop.setOnClickListener(new OnClickListener() {			
 			@Override
 			public void onClick(View v) {
-				sendData("rs");
+				sendTcpData("rs");
 			}
 		});
 	}
@@ -100,19 +107,19 @@ public class MainActivity extends ActionBarActivity {
 		public void OnMoved(int pan, int tilt) {
 			pan = pan + 1500;
 			tilt = tilt * -1 + 1500;
-			sendData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
 		}
 
 		@Override
 		public void OnReleased() {
 			int pan = 1500;
 			int tilt = 1500;
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
-			sendData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
+			sendUdpData("x" + pan + "y" + tilt);
 		}
 	};
 
@@ -125,37 +132,57 @@ public class MainActivity extends ActionBarActivity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		if (item.getItemId() == R.id.action_connect) {
-			if (!connected) {
-				networkTask = new NetworkTask();
-				networkTask.execute();
-			} else {
-				if (networkTask != null) {
-					networkTask.closeSocket();
-					networkTask.cancel(true);
+		switch (item.getItemId()) {
+			case R.id.action_connect:
+				if (!connected) {
+					connect();
+				} else {
+					disconnect();
 				}
-			}
-		} else if (item.getItemId() == R.id.action_settings) {
-			Intent intent = new Intent(this, SettingsActivity.class);
-			startActivity(intent);
+				break;
+			case R.id.action_settings:
+				Intent intent = new Intent(this, SettingsActivity.class);
+				startActivity(intent);
+				break;
 		}
 		return true;
 	}
 	
-	private void sendData(String data) {
-		if(networkTask != null) {
-			networkTask.sendDataToNetwork(data + "\n");
+	private void connect() {
+		tcpNetworkTask = new TcpNetworkTask();
+		tcpNetworkTask.execute();
+		Intent intent = new Intent(this, UdpSendService.class);
+		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	private void disconnect() {
+		if (tcpNetworkTask != null) {
+			tcpNetworkTask.closeSocket();
+			tcpNetworkTask.cancel(false);
+			tcpNetworkTask = null;
+		}
+		if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+        }
+	}
+	
+	private void sendTcpData(String data) {
+		if(tcpNetworkTask != null) {
+			tcpNetworkTask.sendDataToNetwork(data + "\n");
+		}
+	}
+	
+	private void sendUdpData(String data) {
+		if(mBound) {
+			mService.send(data);
 		}
 	}
 
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		if (networkTask != null) {
-			networkTask.closeSocket();
-			networkTask.cancel(true);
-			networkTask = null;
-		}
+		disconnect();
 	}
 
 	public void changeConnectionStatus(boolean connected) {
@@ -172,8 +199,22 @@ public class MainActivity extends ActionBarActivity {
 		TextView battery = (TextView) findViewById(R.id.batteryVoltage);
 		battery.setText(value);
 	}
+	
+	private ServiceConnection mConnection = new ServiceConnection() {
+		@Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            LocalBinder binder = (LocalBinder) service;
+            mService = binder.getService();
+            mBound = true;
+        }
 
-	public class NetworkTask extends AsyncTask<Void, String, Boolean> {
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
+	};
+	
+	public class TcpNetworkTask extends AsyncTask<Void, String, Boolean> {
 		Socket nsocket;
 		InputStream nis;
 		OutputStream nos;
@@ -198,7 +239,7 @@ public class MainActivity extends ActionBarActivity {
 					nis = nsocket.getInputStream();
 					nos = nsocket.getOutputStream();
 					BufferedReader dis = new BufferedReader(new InputStreamReader(nis));
-					sendData("Hello Arduino");
+					sendTcpData("Hello Arduino");
 					while (true) {
 						String msgFromServer = dis.readLine();
 						publishProgress(msgFromServer);
@@ -250,6 +291,7 @@ public class MainActivity extends ActionBarActivity {
 
 		@Override
 		protected void onCancelled() {
+			closeSocket();
 			changeConnectionStatus(false);
 		}
 
@@ -260,6 +302,7 @@ public class MainActivity extends ActionBarActivity {
 			} else {
 				Log.d("Socket", "onPostExecute: Completed.");
 			}
+			closeSocket();
 			changeConnectionStatus(false);
 		}
 	}
